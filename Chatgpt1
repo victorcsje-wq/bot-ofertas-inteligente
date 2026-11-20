@@ -1,0 +1,75 @@
+import requests
+
+API = "https://api.mercadolibre.com/sites/MLB/search"
+
+PESQUISAS = [
+    "smartphone",
+    "notebook",
+    "fone bluetooth",
+    "smart tv",
+    "mouse gamer",
+    "teclado mecanico",
+    "monitor",
+    "videogame"
+]
+
+
+def buscar_ofertas():
+    ofertas = []
+
+    for pesquisa in PESQUISAS:
+        parametros = {
+            "q": pesquisa,
+            "limit": 10,
+            "sort": "price_desc"
+        }
+
+        resposta = requests.get(
+            API,
+            params=parametros,
+            timeout=20
+        )
+
+        resposta.raise_for_status()
+
+        produtos = resposta.json().get("results", [])
+
+        for produto in produtos:
+            preco = produto.get("price", 0)
+            preco_original = produto.get("original_price")
+
+            if not preco_original or preco_original <= preco:
+                continue
+
+            desconto = (
+                (preco_original - preco)
+                / preco_original
+            ) * 100
+
+            if desconto >= 20:
+                ofertas.append({
+                    "nome": produto["title"],
+                    "preco": preco,
+                    "preco_original": preco_original,
+                    "desconto": round(desconto, 1),
+                    "link": produto["permalink"]
+                })
+
+    ofertas.sort(
+        key=lambda x: x["desconto"],
+        reverse=True
+    )
+
+    return ofertas
+
+
+if __name__ == "__main__":
+    ofertas = buscar_ofertas()
+
+    for oferta in ofertas:
+        print("\n🔥 OFERTA ENCONTRADA")
+        print(oferta["nome"])
+        print(f"Preço: R$ {oferta['preco']:.2f}")
+        print(f"Antes: R$ {oferta['preco_original']:.2f}")
+        print(f"Desconto: {oferta['desconto']}%")
+        print(oferta["link"])
