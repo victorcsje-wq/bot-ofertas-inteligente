@@ -8,29 +8,21 @@ PESQUISAS = [
     "fone bluetooth",
     "smart tv",
     "mouse gamer",
-    "teclado mecanico",
-    "monitor",
-    "videogame"
+    "monitor"
 ]
-
 
 def buscar_ofertas():
 
-    ofertas = []
+    total = 0
 
     for pesquisa in PESQUISAS:
 
-        print(f"Pesquisando: {pesquisa}")
-
-        parametros = {
-            "q": pesquisa,
-            "limit": 10
-        }
+        print(f"\n🔎 PESQUISANDO: {pesquisa}")
 
         try:
             resposta = requests.get(
                 API,
-                params=parametros,
+                params={"q": pesquisa, "limit": 10},
                 timeout=30
             )
 
@@ -38,50 +30,22 @@ def buscar_ofertas():
 
             produtos = resposta.json().get("results", [])
 
-            for produto in produtos:
+            print(f"Produtos encontrados: {len(produtos)}")
 
-                preco = produto.get("price")
-                original = produto.get("original_price")
+            for produto in produtos[:5]:
 
-                if not preco or not original:
-                    continue
+                total += 1
 
-                if original <= preco:
-                    continue
+                print("\n----------------------")
+                print("Produto:", produto.get("title"))
+                print("Preço:", produto.get("price"))
+                print("Preço original:", produto.get("original_price"))
+                print("Link:", produto.get("permalink"))
 
-                desconto = (
-                    (original - preco) / original
-                ) * 100
+        except Exception as erro:
+            print("ERRO:", erro)
 
-                if desconto >= 20:
-
-                    ofertas.append({
-                        "nome": produto["title"],
-                        "preco": preco,
-                        "original": original,
-                        "desconto": round(desconto, 1),
-                        "link": produto["permalink"]
-                    })
-
-        except requests.RequestException as erro:
-            print(f"Erro na pesquisa: {erro}")
-
-    ofertas.sort(
-        key=lambda x: x["desconto"],
-        reverse=True
-    )
-
-    print("\n========== MELHORES OFERTAS ==========")
-
-    for oferta in ofertas[:20]:
-
-        print("\n🔥", oferta["nome"])
-        print(f"Preço: R$ {oferta['preco']:.2f}")
-        print(f"Antes: R$ {oferta['original']:.2f}")
-        print(f"Desconto: {oferta['desconto']}%")
-        print(oferta["link"])
-
-    print(f"\nTotal de ofertas encontradas: {len(ofertas)}")
+    print("\nTotal de produtos exibidos:", total)
 
 
 if __name__ == "__main__":
