@@ -1,25 +1,88 @@
-name: Buscar ofertas
+import requests
 
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: "0 */6 * * *"
+API = "https://api.mercadolibre.com/sites/MLB/search"
 
-jobs:
-  buscar:
-    runs-on: ubuntu-latest
+PESQUISAS = [
+    "smartphone",
+    "notebook",
+    "fone bluetooth",
+    "smart tv",
+    "mouse gamer",
+    "teclado mecanico",
+    "monitor",
+    "videogame"
+]
 
-    steps:
-      - name: Baixar projeto
-        uses: actions/checkout@v4
 
-      - name: Configurar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+def buscar_ofertas():
 
-      - name: Instalar dependências
-        run: pip install -r requirements.txt
+    ofertas = []
 
-      - name: Executar buscador
-        run: python main.py
+    for pesquisa in PESQUISAS:
+
+        print(f"Pesquisando: {pesquisa}")
+
+        parametros = {
+            "q": pesquisa,
+            "limit": 10
+        }
+
+        try:
+            resposta = requests.get(
+                API,
+                params=parametros,
+                timeout=30
+            )
+
+            resposta.raise_for_status()
+
+            produtos = resposta.json().get("results", [])
+
+            for produto in produtos:
+
+                preco = produto.get("price")
+                original = produto.get("original_price")
+
+                if not preco or not original:
+                    continue
+
+                if original <= preco:
+                    continue
+
+                desconto = (
+                    (original - preco) / original
+                ) * 100
+
+                if desconto >= 20:
+
+                    ofertas.append({
+                        "nome": produto["title"],
+                        "preco": preco,
+                        "original": original,
+                        "desconto": round(desconto, 1),
+                        "link": produto["permalink"]
+                    })
+
+        except requests.RequestException as erro:
+            print(f"Erro na pesquisa: {erro}")
+
+    ofertas.sort(
+        key=lambda x: x["desconto"],
+        reverse=True
+    )
+
+    print("\n========== MELHORES OFERTAS ==========")
+
+    for oferta in ofertas[:20]:
+
+        print("\n🔥", oferta["nome"])
+        print(f"Preço: R$ {oferta['preco']:.2f}")
+        print(f"Antes: R$ {oferta['original']:.2f}")
+        print(f"Desconto: {oferta['desconto']}%")
+        print(oferta["link"])
+
+    print(f"\nTotal de ofertas encontradas: {len(ofertas)}")
+
+
+if __name__ == "__main__":
+    buscar_ofertas()
